@@ -1,24 +1,30 @@
-package io.github.thenar95.naudix
+package io.github.thenar95.naudix.audio
 
 import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
-import androidx.compose.foundation.Canvas
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.nio.ByteOrder
 import kotlin.math.abs
 
 class DatosOnda(val picos: FloatArray, val duracionMs: Long)
 
-suspend fun calcularOnda(context: Context, uri: Uri, cantidad: Int = 800): DatosOnda? =
+/**
+ * Decodifica el audio a PCM y reduce la amplitud a [cantidad] picos para dibujar la onda.
+ * Se ejecuta en un hilo de CPU y responde a la cancelación del coroutine.
+ * [alProgresar] recibe el avance del análisis (0..1) para poder mostrarlo en pantalla.
+ */
+suspend fun calcularOnda(
+    context: Context,
+    uri: Uri,
+    cantidad: Int = 800,
+    alProgresar: (Float) -> Unit = {}
+): DatosOnda? =
     withContext(Dispatchers.Default) {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
@@ -47,8 +53,11 @@ suspend fun calcularOnda(context: Context, uri: Uri, cantidad: Int = 800): Datos
             var frecuencia = formato.getInteger(MediaFormat.KEY_SAMPLE_RATE)
             var entradaTerminada = false
             var salidaTerminada = false
+            var ultimoProgreso = -1f
 
             while (!salidaTerminada) {
+                ensureActive()
+
                 if (!entradaTerminada) {
                     val i = decodificador.dequeueInputBuffer(10_000)
                     if (i >= 0) {
@@ -74,6 +83,14 @@ suspend fun calcularOnda(context: Context, uri: Uri, cantidad: Int = 800): Datos
                         frecuencia = f.getInteger(MediaFormat.KEY_SAMPLE_RATE)
                     }
                     o >= 0 -> {
+                        if (duracionUs > 0L) {
+                            val progreso = (info.presentationTimeUs.toFloat() / duracionUs)
+                                .coerceIn(0f, 1f)
+                            if (progreso - ultimoProgreso >= 0.01f || progreso >= 1f) {
+                                ultimoProgreso = progreso
+                                alProgresar(progreso)
+                            }
+                        }
                         val buffer = decodificador.getOutputBuffer(o)!!
                         buffer.order(ByteOrder.LITTLE_ENDIAN)
                         buffer.position(info.offset)
@@ -95,6 +112,8 @@ suspend fun calcularOnda(context: Context, uri: Uri, cantidad: Int = 800): Datos
                 }
             }
             DatosOnda(picos, duracionUs / 1000)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             null
         } finally {
@@ -103,25 +122,3 @@ suspend fun calcularOnda(context: Context, uri: Uri, cantidad: Int = 800): Datos
             extractor.release()
         }
     }
-
-@Composable
-fun OndaView(datos: DatosOnda, modifier: Modifier = Modifier) {
-    val maximo = remember(datos) {
-        datos.picos.maxOrNull()?.takeIf { it > 0f } ?: 1f
-    }
-    val color = MaterialTheme.colorScheme.primary
-    Canvas(modifier = modifier) {
-        val ancho = size.width / datos.picos.size
-        val medio = size.height / 2
-        datos.picos.forEachIndexed { i, pico ->
-            val alto = (pico / maximo) * medio
-            val x = i * ancho + ancho / 2
-            drawLine(
-                color = color,
-                start = Offset(x, medio - alto),
-                end = Offset(x, medio + alto),
-                strokeWidth = ancho.coerceAtLeast(1f)
-            )
-        }
-    }
-}
