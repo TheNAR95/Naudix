@@ -1,0 +1,82 @@
+<resources>
+    <string name="app_name">Naudix</string>
+
+    <!-- Editor -->
+    <string name="choose_audio">Elegir audio o video</string>
+    <string name="choose_other_audio">Elegir otro archivo</string>
+    <string name="no_file">Ningún archivo seleccionado</string>
+    <string name="video_audio_note">Es un video: se usará su pista de audio.</string>
+    <string name="calculating_wave">Calculando onda… %1$d%%</string>
+    <string name="wave_error">No se pudo leer la onda de este archivo</string>
+    <string name="waveform_description">Forma de onda del audio</string>
+    <string name="play_crop">Reproducir recorte</string>
+    <string name="pause_crop">Pausar recorte</string>
+    <string name="export_trim">Exportar audio</string>
+    <string name="export_success">Audio exportado correctamente</string>
+    <string name="export_error">Error al exportar</string>
+    <string name="export_cancelled">Exportación cancelada</string>
+    <string name="trim_start">Inicio</string>
+    <string name="trim_end">Fin</string>
+    <string name="trim_edit_start">Ajustar el inicio con minutos y segundos</string>
+    <string name="trim_edit_end">Ajustar el fin con minutos y segundos</string>
+    <string name="trim_dialog_start">Ajustar inicio</string>
+    <string name="trim_dialog_end">Ajustar fin</string>
+    <string name="trim_minutes">Minutos</string>
+    <string name="trim_seconds">Segundos</string>
+    <string name="trim_range_hint">Valor entre %1$s y %2$s</string>
+    <string name="trim_duration">Duración del recorte: %1$s</string>
+    <string name="empty_title">Edita tu audio</string>
+    <string name="empty_description">Elige un audio o un video, recorta la onda y exporta solo la selección.</string>
+    <string name="close_editor">Cerrar edición</string>
+    <string name="dialog_accept">Aceptar</string>
+    <string name="dialog_cancel">Cancelar</string>
+
+    <!-- Hoja de exportación -->
+    <string name="export_sheet_title">Exportar recorte</string>
+    <string name="export_sheet_description">Elige el formato y la calidad del archivo final. Solo se exporta la selección de la onda.</string>
+    <string name="export_format_label">Formato</string>
+    <string name="export_quality_label">Calidad</string>
+    <string name="export_bitrate">%1$d kbps</string>
+    <string name="export_action">Exportar como %1$s</string>
+    <string name="export_progress">Exportando… %1$d%%</string>
+    <string name="export_cancel">Cancelar exportación</string>
+    <string name="export_cancelling">Cancelando…</string>
+
+    <!-- Ajustes -->
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_open">Abrir ajustes</string>
+    <string name="settings_language">Idioma</string>
+    <string name="settings_language_desc">Elige el idioma de la aplicación.</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+    <string name="settings_material_you">Material You</string>
+    <string name="settings_material_you_desc">Usa los colores del fondo de pantalla del sistema.</string>
+    <string name="settings_material_you_unavailable">Material You requiere Android 12 o superior.</string>
+    <string name="settings_palette">Paleta de colores</string>
+    <string name="settings_palette_desc">Elige el color base de toda la interfaz.</string>
+    <string name="settings_palette_dynamic">Desactiva Material You para elegir una paleta propia.</string>
+    <string name="settings_theme">Tema</string>
+    <string name="theme_system">Sistema</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="settings_amoled">Negro AMOLED</string>
+    <string name="settings_amoled_desc">Usa negro puro en el fondo cuando el tema es oscuro.</string>
+    <string name="settings_reset">Restablecer ajustes</string>
+
+    <!-- Paletas -->
+    <string name="palette_gold">Dorado</string>
+    <string name="palette_teal">Turquesa</string>
+    <string name="palette_blue">Azul</string>
+    <string name="palette_green">Verde</string>
+    <string name="palette_pink">Rosa</string>
+    <string name="palette_purple">Violeta</string>
+    <string name="palette_orange">Naranja</string>
+    <string name="palette_custom">Personalizado</string>
+
+    <!-- Selector de color -->
+    <string name="color_title">Color personalizado</string>
+    <string name="color_hue">Tono: %1$d°</string>
+    <string name="color_saturation">Saturación: %1$d%%</string>
+    <string name="color_use">Usar este color</string>
+    <string name="color_cancel">Cancelar</string>
+</resources>

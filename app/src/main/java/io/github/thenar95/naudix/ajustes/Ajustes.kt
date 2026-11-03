@@ -16,12 +16,19 @@ enum class ModoTema {
     OSCURO
 }
 
+/** Idioma de la interfaz. El inglés es el idioma por defecto. */
+enum class Idioma(val codigo: String) {
+    INGLES("en"),
+    ESPANOL("es")
+}
+
 data class Ajustes(
     val materialYou: Boolean = true,
     val paleta: PaletaColor = PaletaColor.DORADO,
     val colorPersonalizado: Int = PaletaColor.DORADO.semilla.toArgb(),
     val modoTema: ModoTema = ModoTema.SISTEMA,
-    val amoled: Boolean = false
+    val amoled: Boolean = false,
+    val idioma: Idioma = Idioma.INGLES
 ) {
     /** Color semilla real: el elegido a mano o el de la paleta seleccionada. */
     val semilla: Color
@@ -68,7 +75,10 @@ class AlmacenAjustes(context: Context) {
         modoTema = preferencias.getString(CLAVE_MODO_TEMA, null)
             ?.let { nombre -> ModoTema.entries.firstOrNull { it.name == nombre } }
             ?: ModoTema.SISTEMA,
-        amoled = preferencias.getBoolean(CLAVE_AMOLED, false)
+        amoled = preferencias.getBoolean(CLAVE_AMOLED, false),
+        idioma = preferencias.getString(CLAVE_IDIOMA, null)
+            ?.let { nombre -> Idioma.entries.firstOrNull { it.name == nombre } }
+            ?: Idioma.INGLES
     )
 
     private fun guardar(ajustes: Ajustes) {
@@ -78,15 +88,31 @@ class AlmacenAjustes(context: Context) {
             putInt(CLAVE_COLOR_PERSONALIZADO, ajustes.colorPersonalizado)
             putString(CLAVE_MODO_TEMA, ajustes.modoTema.name)
             putBoolean(CLAVE_AMOLED, ajustes.amoled)
+            putString(CLAVE_IDIOMA, ajustes.idioma.name)
         }
     }
 
-    private companion object {
-        const val ARCHIVO = "naudix_ajustes"
-        const val CLAVE_MATERIAL_YOU = "material_you"
-        const val CLAVE_PALETA = "paleta"
-        const val CLAVE_COLOR_PERSONALIZADO = "color_personalizado"
-        const val CLAVE_MODO_TEMA = "modo_tema"
-        const val CLAVE_AMOLED = "amoled"
+    companion object {
+        /**
+         * Idioma guardado, leído sin construir todo el almacén. Se necesita en
+         * [android.app.Activity.attachBaseContext] para aplicar el idioma antes de
+         * que se carguen los recursos de la actividad.
+         */
+        fun idiomaGuardado(context: Context): Idioma {
+            val valor = context
+                .getSharedPreferences(ARCHIVO, Context.MODE_PRIVATE)
+                .getString(CLAVE_IDIOMA, null)
+            return valor
+                ?.let { nombre -> Idioma.entries.firstOrNull { it.name == nombre } }
+                ?: Idioma.INGLES
+        }
+
+        private const val ARCHIVO = "naudix_ajustes"
+        private const val CLAVE_MATERIAL_YOU = "material_you"
+        private const val CLAVE_PALETA = "paleta"
+        private const val CLAVE_COLOR_PERSONALIZADO = "color_personalizado"
+        private const val CLAVE_MODO_TEMA = "modo_tema"
+        private const val CLAVE_AMOLED = "amoled"
+        private const val CLAVE_IDIOMA = "idioma"
     }
 }

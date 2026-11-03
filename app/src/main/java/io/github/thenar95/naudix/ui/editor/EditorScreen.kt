@@ -47,6 +47,9 @@ import io.github.thenar95.naudix.R
 import io.github.thenar95.naudix.audio.nombreSugerido
 import kotlin.math.roundToInt
 
+private const val AJUSTANDO_INICIO = "inicio"
+private const val AJUSTANDO_FIN = "fin"
+
 @Composable
 fun EditorScreen(
     modifier: Modifier = Modifier,
@@ -55,6 +58,7 @@ fun EditorScreen(
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var mostrarHoja by rememberSaveable { mutableStateOf(false) }
+    var ajustando by rememberSaveable { mutableStateOf<String?>(null) }
 
     val selector = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -70,15 +74,18 @@ fun EditorScreen(
     if (estado.uri == null) {
         EstadoVacio(
             modifier = modifier,
-            onElegir = { selector.launch(arrayOf("audio/*")) }
+            onElegir = { selector.launch(arrayOf("audio/*", "video/*")) }
         )
     } else {
         ContenidoEditor(
             estado = estado,
             modifier = modifier,
-            onElegir = { selector.launch(arrayOf("audio/*")) },
+            onElegir = { selector.launch(arrayOf("audio/*", "video/*")) },
             onReproducir = viewModel::alternarReproduccion,
             onRango = viewModel::actualizarRango,
+            onBuscar = viewModel::buscar,
+            onAbrirInicio = { ajustando = AJUSTANDO_INICIO },
+            onAbrirFin = { ajustando = AJUSTANDO_FIN },
             onAbrirExportacion = { mostrarHoja = true },
             onCancelarExportacion = viewModel::cancelarExportacion
         )
@@ -100,6 +107,36 @@ fun EditorScreen(
                 )
             },
             onDescartar = { mostrarHoja = false }
+        )
+    }
+
+    val datos = estado.onda
+    val modoAjuste = ajustando
+    if (datos != null && modoAjuste != null) {
+        val duracion = datos.duracionMs
+        val esInicio = modoAjuste == AJUSTANDO_INICIO
+        val inicioMs = (estado.inicio * duracion).toLong()
+        val finMs = (estado.fin * duracion).toLong()
+        DialogoRecorte(
+            titulo = stringResource(
+                if (esInicio) R.string.trim_dialog_start else R.string.trim_dialog_end
+            ),
+            inicialMs = if (esInicio) inicioMs else finMs,
+            minimoMs = if (esInicio) {
+                0L
+            } else {
+                (inicioMs + MINIMO_RECORTE_MS).coerceAtMost(duracion)
+            },
+            maximoMs = if (esInicio) {
+                (finMs - MINIMO_RECORTE_MS).coerceAtLeast(0L)
+            } else {
+                duracion
+            },
+            onAceptar = { ms ->
+                if (esInicio) viewModel.fijarInicio(ms) else viewModel.fijarFin(ms)
+                ajustando = null
+            },
+            onCancelar = { ajustando = null }
         )
     }
 }
@@ -157,6 +194,9 @@ private fun ContenidoEditor(
     onElegir: () -> Unit,
     onReproducir: () -> Unit,
     onRango: (Float, Float) -> Unit,
+    onBuscar: (Long) -> Unit,
+    onAbrirInicio: () -> Unit,
+    onAbrirFin: () -> Unit,
     onAbrirExportacion: () -> Unit,
     onCancelarExportacion: () -> Unit
 ) {
@@ -173,6 +213,14 @@ private fun ContenidoEditor(
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center
         )
+        if (estado.esVideo) {
+            Text(
+                text = stringResource(R.string.video_audio_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
         OutlinedButton(
             onClick = onElegir,
             enabled = !estado.exportando
@@ -216,6 +264,14 @@ private fun ContenidoEditor(
                         fin = estado.fin,
                         onCambio = onRango,
                         habilitado = !estado.exportando,
+                        posicion = if (datos.duracionMs > 0L) {
+                            estado.posicionMs.toFloat() / datos.duracionMs
+                        } else {
+                            0f
+                        },
+                        onBuscar = { fraccion ->
+                            onBuscar((fraccion * datos.duracionMs).toLong())
+                        },
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 12.dp, vertical = 16.dp)
@@ -234,6 +290,29 @@ private fun ContenidoEditor(
 
         if (datos != null) {
             val duracion = datos.duracionMs
+            val posicion = estado.posicionMs.coerceIn(0L, duracion)
+            LinearProgressIndicator(
+                progress = {
+                    if (duracion > 0L) posicion.toFloat() / duracion else 0f
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = formatoTiempo(posicion),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = formatoTiempo(duracion),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -241,11 +320,17 @@ private fun ContenidoEditor(
                 TiempoEtiqueta(
                     etiqueta = stringResource(R.string.trim_start),
                     valor = formatoTiempo((estado.inicio * duracion).toLong()),
+                    descripcionEdicion = stringResource(R.string.trim_edit_start),
+                    onClick = onAbrirInicio,
+                    habilitado = !estado.exportando,
                     modifier = Modifier.weight(1f)
                 )
                 TiempoEtiqueta(
                     etiqueta = stringResource(R.string.trim_end),
                     valor = formatoTiempo((estado.fin * duracion).toLong()),
+                    descripcionEdicion = stringResource(R.string.trim_edit_end),
+                    onClick = onAbrirFin,
+                    habilitado = !estado.exportando,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -352,22 +437,42 @@ private fun ContenidoEditor(
 private fun TiempoEtiqueta(
     etiqueta: String,
     valor: String,
+    descripcionEdicion: String,
+    onClick: () -> Unit,
+    habilitado: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    Card(
+        onClick = onClick,
+        enabled = habilitado,
         modifier = modifier,
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Text(
-                text = etiqueta,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = valor,
-                style = MaterialTheme.typography.titleLarge
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = etiqueta,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = valor,
+                    style = MaterialTheme.typography.titleLarge
+                )
+            }
+            Icon(
+                painter = painterResource(R.drawable.ic_editar),
+                contentDescription = descripcionEdicion,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
             )
         }
     }

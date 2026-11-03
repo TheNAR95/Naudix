@@ -48,17 +48,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.thenar95.naudix.R
 import io.github.thenar95.naudix.ajustes.Ajustes
+import io.github.thenar95.naudix.ajustes.Idioma
 import io.github.thenar95.naudix.ajustes.ModoTema
 import io.github.thenar95.naudix.ui.theme.PaletaColor
 
 /**
- * Hoja de ajustes de apariencia: Material You, paletas propias (incluido un color
+ * Hoja de ajustes: idioma, Material You, paletas propias (incluido un color
  * a medida), tema claro/oscuro y fondo negro puro (AMOLED).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun HojaAjustes(
     ajustes: Ajustes,
+    onIdioma: (Idioma) -> Unit,
     onMaterialYou: (Boolean) -> Unit,
     onPaleta: (PaletaColor) -> Unit,
     onColorPersonalizado: (Color) -> Unit,
@@ -89,6 +91,32 @@ fun HojaAjustes(
                 text = stringResource(R.string.settings_title),
                 style = MaterialTheme.typography.headlineSmall
             )
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = stringResource(R.string.settings_language),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = stringResource(R.string.settings_language_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    Idioma.entries.forEachIndexed { indice, idioma ->
+                        SegmentedButton(
+                            selected = ajustes.idioma == idioma,
+                            onClick = { onIdioma(idioma) },
+                            shape = SegmentedButtonDefaults.itemShape(
+                                index = indice,
+                                count = Idioma.entries.size
+                            )
+                        ) {
+                            Text(stringResource(idioma.etiqueta))
+                        }
+                    }
+                }
+            }
 
             FilaInterruptor(
                 titulo = stringResource(R.string.settings_material_you),
@@ -277,4 +305,10 @@ private val ModoTema.etiqueta: Int
         ModoTema.SISTEMA -> R.string.theme_system
         ModoTema.CLARO -> R.string.theme_light
         ModoTema.OSCURO -> R.string.theme_dark
+    }
+
+private val Idioma.etiqueta: Int
+    @StringRes get() = when (this) {
+        Idioma.INGLES -> R.string.language_english
+        Idioma.ESPANOL -> R.string.language_spanish
     }

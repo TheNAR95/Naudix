@@ -1,7 +1,9 @@
 package io.github.thenar95.naudix.ui.editor
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -13,6 +15,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
 import io.github.thenar95.naudix.R
 import io.github.thenar95.naudix.audio.DatosOnda
 import java.util.Locale
@@ -33,7 +36,11 @@ fun OndaEditor(
     fin: Float,
     onCambio: (Float, Float) -> Unit,
     modifier: Modifier = Modifier,
-    habilitado: Boolean = true
+    habilitado: Boolean = true,
+    /** Posición de reproducción como fracción de la duración (0..1). */
+    posicion: Float = 0f,
+    /** Se llama al pulsar o arrastrar sobre la onda para mover la reproducción. */
+    onBuscar: (Float) -> Unit = {}
 ) {
     val maximo = remember(datos) {
         datos.picos.maxOrNull()?.takeIf { it > 0f } ?: 1f
@@ -41,30 +48,49 @@ fun OndaEditor(
     val colorSel = MaterialTheme.colorScheme.primary
     val colorFuera = MaterialTheme.colorScheme.outlineVariant
     val colorManija = MaterialTheme.colorScheme.tertiary
+    val colorPosicion = MaterialTheme.colorScheme.onSurface
     val inicioActual by rememberUpdatedState(inicio)
     val finActual by rememberUpdatedState(fin)
     val cambioActual by rememberUpdatedState(onCambio)
+    val buscarActual by rememberUpdatedState(onBuscar)
     val descripcion = stringResource(R.string.waveform_description)
 
     val arrastre = if (habilitado) {
         Modifier.pointerInput(Unit) {
-            var manijaActiva = 0
-            detectDragGestures(
-                onDragStart = { punto ->
-                    val f = punto.x / size.width
-                    manijaActiva =
-                        if (abs(f - inicioActual) <= abs(f - finActual)) 1 else 2
-                },
-                onDrag = { cambio, _ ->
-                    cambio.consume()
-                    val f = (cambio.position.x / size.width).coerceIn(0f, 1f)
-                    if (manijaActiva == 1) {
-                        cambioActual(f.coerceAtMost(finActual - 0.01f), finActual)
-                    } else {
-                        cambioActual(inicioActual, f.coerceAtLeast(inicioActual + 0.01f))
+            awaitEachGesture {
+                if (size.width <= 0) return@awaitEachGesture
+                val pulsacion = awaitFirstDown(requireUnconsumed = false)
+                val fraccion = (pulsacion.position.x / size.width).coerceIn(0f, 1f)
+                val umbral = 28.dp.toPx() / size.width
+                val distanciaInicio = abs(fraccion - inicioActual)
+                val distanciaFin = abs(fraccion - finActual)
+                val manija = when {
+                    distanciaInicio <= umbral && distanciaInicio <= distanciaFin -> 1
+                    distanciaFin <= umbral -> 2
+                    else -> 0
+                }
+
+                pulsacion.consume()
+                if (manija == 0) {
+                    // Pulsar o arrastrar fuera de las manijas mueve la barra de
+                    // reproducción: la reproducción continúa desde ese punto.
+                    buscarActual(fraccion)
+                    drag(pulsacion.id) { cambio ->
+                        cambio.consume()
+                        buscarActual((cambio.position.x / size.width).coerceIn(0f, 1f))
+                    }
+                } else {
+                    drag(pulsacion.id) { cambio ->
+                        cambio.consume()
+                        val f = (cambio.position.x / size.width).coerceIn(0f, 1f)
+                        if (manija == 1) {
+                            cambioActual(f.coerceAtMost(finActual - 0.01f), finActual)
+                        } else {
+                            cambioActual(inicioActual, f.coerceAtLeast(inicioActual + 0.01f))
+                        }
                     }
                 }
-            )
+            }
         }
     } else {
         Modifier
@@ -94,5 +120,15 @@ fun OndaEditor(
             drawLine(colorManija, Offset(x, 0f), Offset(x, size.height), strokeWidth = 6f)
             drawCircle(colorManija, radius = 16f, center = Offset(x, medio))
         }
+
+        // Línea que marca el punto exacto que está sonando.
+        val xPosicion = posicion.coerceIn(0f, 1f) * size.width
+        drawLine(
+            color = colorPosicion,
+            start = Offset(xPosicion, 0f),
+            end = Offset(xPosicion, size.height),
+            strokeWidth = 3f
+        )
+        drawCircle(colorPosicion, radius = 8f, center = Offset(xPosicion, medio))
     }
 }

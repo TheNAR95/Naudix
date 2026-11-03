@@ -96,8 +96,8 @@ fun HojaExportacion(
                         }
                     }
                 }
-            }
 
+            }
             Button(
                 onClick = onExportar,
                 modifier = Modifier

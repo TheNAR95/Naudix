@@ -46,6 +46,7 @@ fun exportarAudio(
     } catch (e: CancellationException) {
         ResultadoExportacion.Cancelado
     } catch (e: Throwable) {
+        android.util.Log.e("Naudix", "Error al exportar audio", e)
         ResultadoExportacion.Error
     }
     alTerminar(resultado)

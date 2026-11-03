@@ -1,5 +1,6 @@
 package io.github.thenar95.naudix.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -20,10 +21,12 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.thenar95.naudix.R
 import io.github.thenar95.naudix.ajustes.AlmacenAjustes
 import io.github.thenar95.naudix.ui.ajustes.HojaAjustes
 import io.github.thenar95.naudix.ui.editor.EditorScreen
+import io.github.thenar95.naudix.ui.editor.EditorViewModel
 import io.github.thenar95.naudix.ui.theme.PaletaColor
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,11 +34,27 @@ import io.github.thenar95.naudix.ui.theme.PaletaColor
 fun NaudixApp(almacen: AlmacenAjustes) {
     val ajustes by almacen.ajustes.collectAsStateWithLifecycle()
     var mostrarAjustes by rememberSaveable { mutableStateOf(false) }
+    val editor: EditorViewModel = viewModel()
+    val estadoEditor by editor.estado.collectAsStateWithLifecycle()
+
+    BackHandler(enabled = estadoEditor.uri != null && !mostrarAjustes) {
+        editor.cerrarArchivo()
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {},
+                navigationIcon = {
+                    if (estadoEditor.uri != null) {
+                        IconButton(onClick = editor::cerrarArchivo) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_atras),
+                                contentDescription = stringResource(R.string.close_editor)
+                            )
+                        }
+                    }
+                },
                 actions = {
                     IconButton(onClick = { mostrarAjustes = true }) {
                         Icon(
@@ -55,13 +74,16 @@ fun NaudixApp(almacen: AlmacenAjustes) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            EditorScreen()
+            EditorScreen(viewModel = editor)
         }
     }
 
     if (mostrarAjustes) {
         HojaAjustes(
             ajustes = ajustes,
+            onIdioma = { idioma ->
+                almacen.actualizar { it.copy(idioma = idioma) }
+            },
             onMaterialYou = { activo ->
                 almacen.actualizar { it.copy(materialYou = activo) }
             },
